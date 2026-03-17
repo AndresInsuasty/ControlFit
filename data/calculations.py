@@ -6,9 +6,6 @@ MESES_ES = {
     7: "Jul", 8: "Ago", 9: "Sep", 10: "Oct", 11: "Nov", 12: "Dic"
 }
 
-EMPTY_COLUMNS = ["id", "nombre", "telefono", "fecha_inicio", "fecha_fin",
-                 "valor_pagado", "notas", "fecha_registro"]
-
 
 def compute_status(df: pd.DataFrame) -> pd.DataFrame:
     """Add 'estado' column: ACTIVO / POR VENCER / VENCIDO."""
