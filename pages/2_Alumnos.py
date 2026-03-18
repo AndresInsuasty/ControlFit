@@ -1,5 +1,4 @@
 import streamlit as st
-import pandas as pd
 from data.sheets import get_data
 from data.calculations import compute_status
 from utils.theme import apply_theme, PAGE_CONFIG
@@ -22,35 +21,38 @@ if df_raw.empty:
 
 df = compute_status(df_raw)
 
-# --- Filter ---
-estados = ["Todos", "ACTIVO", "POR VENCER", "VENCIDO"]
-filtro = st.selectbox("Filtrar por estado", estados)
+# One row per student — most recent plan
+df_current = df.sort_values("fecha_fin").groupby("nombre", as_index=False).last()
 
-if filtro != "Todos":
-    df = df[df["estado"] == filtro]
+activos    = df_current[df_current["estado"] == "ACTIVO"].sort_values("fecha_fin")
+por_vencer = df_current[df_current["estado"] == "POR VENCER"].sort_values("fecha_fin")
+vencidos   = df_current[df_current["estado"] == "VENCIDO"].sort_values("fecha_fin", ascending=False)
 
-if df.empty:
-    st.info(f"No hay alumnos con estado {filtro}.")
-    st.stop()
 
-# --- Prepare display ---
-display = df[["nombre", "telefono", "fecha_inicio", "fecha_fin", "valor_pagado", "estado", "notas"]].copy()
-display["fecha_inicio"] = display["fecha_inicio"].dt.strftime("%d/%m/%Y")
-display["fecha_fin"] = display["fecha_fin"].dt.strftime("%d/%m/%Y")
-display["valor_pagado"] = display["valor_pagado"].apply(lambda x: f"$ {x:,.0f}".replace(",", "."))
+def render_section(group_df, title, empty_msg):
+    st.subheader(f"{title} ({len(group_df)})")
+    if group_df.empty:
+        st.caption(empty_msg)
+        return
+    for _, row in group_df.iterrows():
+        fecha_fin_str = row["fecha_fin"].strftime("%d/%m/%Y")
+        with st.expander(f"{row['nombre']}  ·  {fecha_fin_str}"):
+            historia = (
+                df_raw[df_raw["nombre"] == row["nombre"]]
+                .sort_values("fecha_fin", ascending=False)
+            )
+            hist_display = historia[["fecha_inicio", "fecha_fin", "valor_pagado", "notas"]].copy()
+            hist_display["fecha_inicio"] = hist_display["fecha_inicio"].dt.strftime("%d/%m/%Y")
+            hist_display["fecha_fin"] = hist_display["fecha_fin"].dt.strftime("%d/%m/%Y")
+            hist_display["valor_pagado"] = hist_display["valor_pagado"].apply(
+                lambda x: f"$ {x:,.0f}".replace(",", ".")
+            )
+            hist_display.columns = ["Inicio", "Fin", "Valor pagado", "Notas"]
+            st.dataframe(hist_display, hide_index=True, use_container_width=True)
 
-# Dark-theme compatible row colors
-COLOR_MAP = {
-    "ACTIVO":     "background-color: #0f2b1a; color: #86efac",
-    "POR VENCER": "background-color: #2b1f00; color: #fcd34d",
-    "VENCIDO":    "background-color: #2b0f0f; color: #fca5a5",
-}
 
-def style_row(row):
-    color = COLOR_MAP.get(row["estado"], "")
-    return [color] * len(row)
-
-styled = display.style.apply(style_row, axis=1)
-
-st.dataframe(styled, use_container_width=True, hide_index=True)
-st.caption(f"Mostrando {len(df)} registro(s).")
+render_section(activos, "💪 Activos", "Sin alumnos activos.")
+st.divider()
+render_section(por_vencer, "⏰ Por Vencer", "Sin alumnos próximos a vencer.")
+st.divider()
+render_section(vencidos, "🔴 Vencidos", "Sin alumnos vencidos.")
