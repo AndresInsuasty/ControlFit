@@ -1,3 +1,4 @@
+import urllib.parse
 import streamlit as st
 import plotly.graph_objects as go
 from data.sheets import get_data
@@ -135,8 +136,16 @@ st.markdown("""
     background: #111120;
     border: 1px solid rgba(255,255,255,0.07);
     border-radius: 20px;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
+    max-height: 204px;
     margin-bottom: 0.75rem;
+}
+.action-card::-webkit-scrollbar { width: 4px; }
+.action-card::-webkit-scrollbar-track { background: transparent; }
+.action-card::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.08);
+    border-radius: 4px;
 }
 .action-item {
     display: flex;
@@ -361,8 +370,18 @@ else:
             rows = ""
             for _, r in expiring_df.iterrows():
                 wa_url = format_whatsapp_url(r["telefono"])
-                wa = f'<a href="{wa_url}" target="_blank" class="wa-btn">📱 WhatsApp</a>' if wa_url else ""
-                fecha = r["fecha_fin"].strftime("%d/%m/%Y")
+                dias_restantes = (r["fecha_fin"].date() - hoy).days
+                dias_label = "día" if dias_restantes == 1 else "días"
+                if wa_url:
+                    msg = (
+                        f"Hola {r['nombre']}! 👋 Soy la IA de tu Coach Diego. "
+                        f"Te escribo para recordarte que tu membresía vence en {dias_restantes} {dias_label}. "
+                        f"🏋️ Renueva antes de que venza y sigue entrenando sin interrupciones. "
+                        f"¡No dejes que se corte tu racha! 💪"
+                    )
+                    wa = f'<a href="{wa_url}?text={urllib.parse.quote(msg)}" target="_blank" class="wa-btn">📱 WhatsApp</a>'
+                else:
+                    wa = ""
                 valor = fmt_cop(r["valor_pagado"])
                 rows += f"""
                 <div class="action-item">
@@ -370,7 +389,7 @@ else:
                     <div class="action-info">
                         <div class="action-name">{r['nombre']}</div>
                         <div class="action-sub">
-                            <span class="badge badge-amber">Vence {fecha}</span>
+                            <span class="badge badge-amber">Vence en {dias_restantes} {dias_label}</span>
                         </div>
                     </div>
                     <div class="action-right">
@@ -393,11 +412,20 @@ else:
             rows = ""
             for _, r in expired_df.iterrows():
                 wa_url = format_whatsapp_url(r["telefono"])
-                wa = f'<a href="{wa_url}" target="_blank" class="wa-btn">📱 WhatsApp</a>' if wa_url else ""
                 fecha = r["fecha_fin"].strftime("%d/%m/%Y")
                 valor = fmt_cop(r["valor_pagado"])
                 dias = int(r["dias_vencido"])
                 label = "día" if dias == 1 else "días"
+                if wa_url:
+                    msg = (
+                        f"Hola {r['nombre']}! 👋 Soy la IA de tu Coach Diego. "
+                        f"Hace {dias} {label} que tu membresía venció y te extrañamos en el gym. 🏋️ "
+                        f"Sabemos que retomar cuesta, pero ya diste el primer paso al entrenar con Diego. "
+                        f"¿Qué te parece si renovamos hoy y seguimos con tu progreso? ¡Te esperamos! 💪"
+                    )
+                    wa = f'<a href="{wa_url}?text={urllib.parse.quote(msg)}" target="_blank" class="wa-btn">📱 WhatsApp</a>'
+                else:
+                    wa = ""
                 rows += f"""
                 <div class="action-item">
                     <div class="action-dot" style="background:#F87171"></div>
