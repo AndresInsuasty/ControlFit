@@ -1,6 +1,6 @@
 import streamlit as st
 import uuid
-from datetime import datetime, date
+from datetime import datetime, date, timezone, timedelta
 from data.sheets import get_data, append_record, update_record
 
 st.set_page_config(page_title="Gestión — ControlFit", page_icon="⚙️", layout="centered")
@@ -24,7 +24,7 @@ with tab_add:
         telefono = st.text_input("Teléfono / WhatsApp", placeholder="Ej: 3001234567")
         col1, col2 = st.columns(2)
         fecha_inicio = col1.date_input("Fecha de inicio *", value=date.today())
-        fecha_fin = col2.date_input("Fecha de fin *", value=date.today())
+        fecha_fin = col2.date_input("Fecha de fin *", value=date.today() + timedelta(days=30))
         valor_pagado = st.number_input("Valor pagado (COP) *", min_value=0.0, step=1000.0, format="%.0f")
         notas = st.text_area("Notas", placeholder="Objetivo, lesiones, observaciones...")
         submitted = st.form_submit_button("Guardar alumno", use_container_width=True)
@@ -43,7 +43,7 @@ with tab_add:
                 "fecha_fin": fecha_fin.strftime("%d/%m/%Y"),
                 "valor_pagado": float(valor_pagado),
                 "notas": notas.strip(),
-                "fecha_registro": datetime.utcnow().isoformat(),
+                "fecha_registro": datetime.now(timezone(timedelta(hours=-5))).isoformat(),
             }
             append_record(record)
             st.success(f"✅ Alumno **{nombre}** guardado exitosamente.")
@@ -59,17 +59,15 @@ with tab_edit:
     if df.empty:
         st.info("No hay registros para editar.")
     else:
-        # Build dropdown labels with id suffix to disambiguate
         df["_label"] = (
             df["nombre"] + " — "
             + df["fecha_inicio"].dt.strftime("%d/%m/%Y") + " → "
             + df["fecha_fin"].dt.strftime("%d/%m/%Y")
-            + " (id: " + df["id"].str[:8] + ")"
         )
-        label_to_id = dict(zip(df["_label"], df["id"]))
-        selected_label = st.selectbox("Selecciona un registro", list(label_to_id.keys()))
-        selected_id = label_to_id[selected_label]
-        row = df[df["id"] == selected_id].iloc[0]
+        labels = df["_label"].tolist()
+        selected_idx = st.selectbox("Selecciona un registro", range(len(labels)), format_func=lambda i: labels[i])
+        row = df.iloc[selected_idx]
+        selected_id = row["id"]
 
         with st.form("form_editar"):
             nombre_e = st.text_input("Nombre *", value=row["nombre"])

@@ -25,7 +25,7 @@ def get_data() -> pd.DataFrame:
         df["fecha_inicio"] = pd.to_datetime(df["fecha_inicio"], format="%d/%m/%Y", dayfirst=True)
         df["fecha_fin"] = pd.to_datetime(df["fecha_fin"], format="%d/%m/%Y", dayfirst=True)
         df["valor_pagado"] = pd.to_numeric(df["valor_pagado"], errors="coerce").fillna(0.0)
-        df["fecha_registro"] = pd.to_datetime(df["fecha_registro"])
+        df["fecha_registro"] = pd.to_datetime(df["fecha_registro"], format="ISO8601", utc=True).dt.tz_convert("America/Bogota")
         return df
     except Exception as e:
         st.error(f"Error al conectar con Google Sheets: {e}")

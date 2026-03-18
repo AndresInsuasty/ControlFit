@@ -1,7 +1,11 @@
 import pandas as pd
 import pytest
 from datetime import datetime, timedelta
-from data.calculations import compute_status, get_metrics, get_monthly_income, get_status_counts, MESES_ES
+from data.calculations import (
+    compute_status, get_metrics, get_monthly_income, get_status_counts,
+    get_expiring_students, get_expired_students, get_projected_income,
+    format_whatsapp_url, MESES_ES,
+)
 
 TODAY = pd.Timestamp.now().normalize()
 
@@ -68,9 +72,9 @@ def test_compute_status_empty_df():
 
 def test_get_metrics_counts():
     df = make_df([
-        {"fecha_fin": TODAY + timedelta(days=20)},   # ACTIVO
-        {"fecha_fin": TODAY + timedelta(days=3)},    # POR VENCER
-        {"fecha_fin": TODAY - timedelta(days=5)},    # VENCIDO
+        {"nombre": "A", "fecha_fin": TODAY + timedelta(days=20)},   # ACTIVO
+        {"nombre": "B", "fecha_fin": TODAY + timedelta(days=3)},    # POR VENCER
+        {"nombre": "C", "fecha_fin": TODAY - timedelta(days=5)},    # VENCIDO
     ])
     df = compute_status(df)
     metrics = get_metrics(df)
@@ -126,10 +130,10 @@ def test_get_monthly_income_aggregates_current_month():
 
 def test_get_status_counts():
     df = make_df([
-        {"fecha_fin": TODAY + timedelta(days=20)},
-        {"fecha_fin": TODAY + timedelta(days=20)},
-        {"fecha_fin": TODAY + timedelta(days=3)},
-        {"fecha_fin": TODAY - timedelta(days=1)},
+        {"nombre": "A", "fecha_fin": TODAY + timedelta(days=20)},
+        {"nombre": "B", "fecha_fin": TODAY + timedelta(days=20)},
+        {"nombre": "C", "fecha_fin": TODAY + timedelta(days=3)},
+        {"nombre": "D", "fecha_fin": TODAY - timedelta(days=1)},
     ])
     df = compute_status(df)
     counts = get_status_counts(df)
@@ -141,3 +145,116 @@ def test_get_status_counts_empty():
     df = pd.DataFrame(columns=["estado"])
     counts = get_status_counts(df)
     assert counts == {"ACTIVO": 0, "POR VENCER": 0, "VENCIDO": 0}
+
+
+# --- get_expiring_students ---
+
+def test_get_expiring_students_returns_por_vencer():
+    df = make_df([
+        {"nombre": "Maria", "fecha_fin": TODAY + timedelta(days=5)},
+        {"nombre": "Juan", "fecha_fin": TODAY + timedelta(days=20)},
+        {"nombre": "Ana", "fecha_fin": TODAY - timedelta(days=3)},
+    ])
+    df = compute_status(df)
+    result = get_expiring_students(df)
+    assert len(result) == 1
+    assert result.iloc[0]["nombre"] == "Maria"
+
+def test_get_expiring_students_sorted_by_fecha_fin():
+    df = make_df([
+        {"nombre": "Maria", "fecha_fin": TODAY + timedelta(days=6)},
+        {"nombre": "Pedro", "fecha_fin": TODAY + timedelta(days=2)},
+    ])
+    df = compute_status(df)
+    result = get_expiring_students(df)
+    assert result.iloc[0]["nombre"] == "Pedro"
+    assert result.iloc[1]["nombre"] == "Maria"
+
+def test_get_expiring_students_empty():
+    df = make_df([
+        {"nombre": "Juan", "fecha_fin": TODAY + timedelta(days=20)},
+    ])
+    df = compute_status(df)
+    result = get_expiring_students(df)
+    assert result.empty
+
+
+# --- get_expired_students ---
+
+def test_get_expired_students_returns_vencido():
+    df = make_df([
+        {"nombre": "Ana", "fecha_fin": TODAY - timedelta(days=5)},
+        {"nombre": "Luis", "fecha_fin": TODAY + timedelta(days=20)},
+    ])
+    df = compute_status(df)
+    result = get_expired_students(df)
+    assert len(result) == 1
+    assert result.iloc[0]["nombre"] == "Ana"
+    assert result.iloc[0]["dias_vencido"] == 5
+
+def test_get_expired_students_sorted_desc():
+    df = make_df([
+        {"nombre": "Ana", "fecha_fin": TODAY - timedelta(days=10)},
+        {"nombre": "Carlos", "fecha_fin": TODAY - timedelta(days=2)},
+    ])
+    df = compute_status(df)
+    result = get_expired_students(df)
+    assert result.iloc[0]["nombre"] == "Carlos"
+    assert result.iloc[1]["nombre"] == "Ana"
+
+def test_get_expired_students_empty():
+    df = make_df([
+        {"nombre": "Juan", "fecha_fin": TODAY + timedelta(days=20)},
+    ])
+    df = compute_status(df)
+    result = get_expired_students(df)
+    assert result.empty
+
+
+# --- get_projected_income ---
+
+def test_get_projected_income_sums_por_vencer_and_vencido():
+    df = make_df([
+        {"nombre": "Maria", "fecha_fin": TODAY + timedelta(days=3), "valor_pagado": 100000.0},
+        {"nombre": "Ana", "fecha_fin": TODAY - timedelta(days=5), "valor_pagado": 80000.0},
+        {"nombre": "Luis", "fecha_fin": TODAY + timedelta(days=20), "valor_pagado": 150000.0},
+    ])
+    df = compute_status(df)
+    total, count = get_projected_income(df)
+    assert total == 180000.0
+    assert count == 2
+
+def test_get_projected_income_excludes_activo():
+    df = make_df([
+        {"nombre": "Luis", "fecha_fin": TODAY + timedelta(days=20), "valor_pagado": 150000.0},
+    ])
+    df = compute_status(df)
+    total, count = get_projected_income(df)
+    assert total == 0.0
+    assert count == 0
+
+def test_get_projected_income_empty():
+    df = pd.DataFrame(columns=["id", "nombre", "telefono", "fecha_inicio", "fecha_fin",
+                                "valor_pagado", "notas", "fecha_registro", "estado"])
+    total, count = get_projected_income(df)
+    assert total == 0.0
+    assert count == 0
+
+
+# --- format_whatsapp_url ---
+
+def test_format_whatsapp_url_10_digits():
+    assert format_whatsapp_url("3001234567") == "https://wa.me/573001234567"
+
+def test_format_whatsapp_url_with_formatting():
+    assert format_whatsapp_url("+57 300 123 4567") == "https://wa.me/573001234567"
+
+def test_format_whatsapp_url_empty():
+    assert format_whatsapp_url("") == ""
+
+def test_format_whatsapp_url_float_from_sheets():
+    # Sheets stores phone as number → pandas reads as float
+    assert format_whatsapp_url(3001234567.0) == "https://wa.me/573001234567"
+
+def test_format_whatsapp_url_none():
+    assert format_whatsapp_url(None) == ""
