@@ -58,6 +58,7 @@ st.markdown("""
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
     margin-bottom: 1.75rem;
+    overflow: visible;
 }
 @media (min-width: 560px) { .kpi-grid { grid-template-columns: repeat(3, 1fr); } }
 @media (min-width: 860px) { .kpi-grid { grid-template-columns: repeat(5, 1fr); } }
@@ -68,7 +69,7 @@ st.markdown("""
     border-radius: 20px;
     padding: 18px 16px 16px;
     position: relative;
-    overflow: hidden;
+    overflow: visible;
     transition: border-color 0.2s, transform 0.2s;
 }
 .kpi-card:hover {
@@ -258,6 +259,54 @@ st.markdown("""
     margin-top: 4px;
 }
 
+/* ─ KPI INFO TOOLTIP ─ */
+.kpi-info {
+    position: relative;
+    display: inline-block;
+    cursor: default;
+    color: #334155;
+    font-size: 0.65rem;
+    vertical-align: middle;
+    margin-left: 4px;
+    line-height: 1;
+}
+.kpi-tooltip {
+    visibility: hidden;
+    opacity: 0;
+    width: 180px;
+    background: #1A1A2E;
+    color: #94A3B8;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    line-height: 1.45;
+    border-radius: 12px;
+    padding: 10px 12px;
+    border: 1px solid rgba(255,255,255,0.09);
+    position: absolute;
+    z-index: 9999;
+    bottom: calc(100% + 8px);
+    right: 0;
+    left: auto;
+    transform: none;
+    transition: opacity 0.18s;
+    pointer-events: none;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+.kpi-info:hover .kpi-tooltip { visibility: visible; opacity: 1; }
+
+/* 2-col (mobile <560px): card 5 cae en columna izquierda → extender a la derecha */
+@media (max-width: 559px) {
+    .kpi-card:nth-child(5) .kpi-tooltip { left: 0; right: auto; }
+}
+/* 3-col (560-859px): cards 4 y 5 caen en columna izquierda → extender a la derecha */
+@media (min-width: 560px) and (max-width: 859px) {
+    .kpi-card:nth-child(4) .kpi-tooltip,
+    .kpi-card:nth-child(5) .kpi-tooltip { left: 0; right: auto; }
+}
+
 /* ─ CHART CARDS ─ */
 [data-testid="stPlotlyChart"] > div {
     background: #111120 !important;
@@ -333,14 +382,24 @@ st.markdown(f"""
         <div class="kpi-accent" style="background:#60A5FA"></div>
         <span class="kpi-icon">💵</span>
         <div class="kpi-value md">{ingresos_fmt}</div>
-        <div class="kpi-label">Ingresos Mes</div>
+        <div class="kpi-label">
+            Ingresos este mes
+            <span class="kpi-info">ℹ
+                <span class="kpi-tooltip">Suma de todos los pagos registrados durante el mes actual, basado en la fecha en que se guardó cada registro.</span>
+            </span>
+        </div>
     </div>
     <div class="kpi-card">
         <div class="kpi-accent" style="background:#A78BFA"></div>
         <span class="kpi-icon">📈</span>
         <div class="kpi-value md">{proj_fmt}</div>
-        <div class="kpi-label">Proyección</div>
-        <div class="kpi-delta">↑ {renewal_count} por renovar</div>
+        <div class="kpi-label">
+            Proyección próximo mes
+            <span class="kpi-info">ℹ
+                <span class="kpi-tooltip">Estimado de ingresos del próximo mes basado en los {renewal_count} afiliados activos y por vencer, usando su último valor pagado.</span>
+            </span>
+        </div>
+        <div class="kpi-delta">↑ {renewal_count} activos</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -456,6 +515,7 @@ chart_col1, chart_col2 = st.columns(2)
 with chart_col1:
     st.markdown('<div class="chart-label">Ingresos por Mes</div>', unsafe_allow_html=True)
     income_df = get_monthly_income(df_raw)
+    income_df = income_df[income_df["ingresos"] > 0]
     fig_bar = go.Figure(go.Bar(
         x=income_df["mes"],
         y=income_df["ingresos"],

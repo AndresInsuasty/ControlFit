@@ -96,13 +96,13 @@ def get_expired_students(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def get_projected_income(df: pd.DataFrame) -> tuple:
-    """Return (projected_income, student_count) for students needing renewal."""
+    """Return (projected_income, student_count) based on all active students."""
     if df.empty or "estado" not in df.columns:
         return (0.0, 0)
     current = _current_per_student(df)
-    needs_renewal = current[current["estado"].isin(["POR VENCER", "VENCIDO"])]
-    total = float(needs_renewal["valor_pagado"].sum())
-    count = len(needs_renewal)
+    active = current[current["estado"].isin(["ACTIVO", "POR VENCER"])]
+    total = float(active["valor_pagado"].sum())
+    count = len(active)
     return (total, count)
 
 
