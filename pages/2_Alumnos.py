@@ -2,12 +2,15 @@ import streamlit as st
 import pandas as pd
 from data.sheets import get_data
 from data.calculations import compute_status
+from utils.theme import apply_theme, PAGE_CONFIG
 
-st.set_page_config(page_title="Alumnos — ControlFit", page_icon="👥", layout="wide")
+st.set_page_config(page_title="Alumnos — ControlFit", page_icon="👥", **PAGE_CONFIG)
 
 if not st.session_state.get("authenticated"):
     st.warning("Debes iniciar sesión primero.")
     st.stop()
+
+apply_theme()
 
 st.title("👥 Alumnos")
 
@@ -36,11 +39,11 @@ display["fecha_inicio"] = display["fecha_inicio"].dt.strftime("%d/%m/%Y")
 display["fecha_fin"] = display["fecha_fin"].dt.strftime("%d/%m/%Y")
 display["valor_pagado"] = display["valor_pagado"].apply(lambda x: f"$ {x:,.0f}".replace(",", "."))
 
-# --- Color styling ---
+# Dark-theme compatible row colors
 COLOR_MAP = {
-    "ACTIVO": "background-color: #d4edda",
-    "POR VENCER": "background-color: #fff3cd",
-    "VENCIDO": "background-color: #f8d7da",
+    "ACTIVO":     "background-color: #0f2b1a; color: #86efac",
+    "POR VENCER": "background-color: #2b1f00; color: #fcd34d",
+    "VENCIDO":    "background-color: #2b0f0f; color: #fca5a5",
 }
 
 def style_row(row):

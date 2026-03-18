@@ -11,38 +11,19 @@ from data.calculations import (
     get_projected_income,
     get_status_counts,
 )
+from utils.theme import apply_theme, PAGE_CONFIG
 
-st.set_page_config(page_title="ControlFit", page_icon="💪", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="ControlFit", page_icon="💪", **PAGE_CONFIG)
 
 if not st.session_state.get("authenticated"):
     st.warning("Debes iniciar sesión primero.")
     st.stop()
 
-# ── CSS ────────────────────────────────────────────────────────────────────
+apply_theme()
+
+# ── CSS (dashboard-specific) ───────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
-
-/* ─ GLOBAL ─ */
-.stApp {
-    background: #07070F !important;
-}
-.main .block-container {
-    padding: 1.5rem 1rem 3rem !important;
-    max-width: 1100px;
-}
-* { box-sizing: border-box; }
-
-/* ─ HIDE CHROME ─ */
-.stDeployButton,
-footer,
-#MainMenu { display: none !important; }
-/* Header: invisible but present so the sidebar toggle still works */
-header[data-testid="stHeader"] {
-    background: transparent !important;
-    border-bottom: none !important;
-}
-
 /* ─ PAGE TITLE ─ */
 .cf-page-header {
     margin-bottom: 1.75rem;
@@ -285,56 +266,6 @@ header[data-testid="stHeader"] {
     margin-bottom: 6px;
 }
 
-/* ─ NAV BUTTONS ─ */
-[data-testid="stPageLink"] {
-    width: 100%;
-}
-[data-testid="stPageLink"] a {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 8px !important;
-    background: #111120 !important;
-    border: 1px solid rgba(255,255,255,0.09) !important;
-    border-radius: 14px !important;
-    color: #94A3B8 !important;
-    font-family: 'DM Sans', sans-serif !important;
-    font-size: 0.85rem !important;
-    font-weight: 500 !important;
-    padding: 12px 16px !important;
-    text-decoration: none !important;
-    transition: border-color 0.2s, color 0.2s, background 0.2s !important;
-    width: 100% !important;
-}
-[data-testid="stPageLink"] a:hover {
-    background: #181828 !important;
-    border-color: rgba(255,255,255,0.18) !important;
-    color: #F1F5F9 !important;
-    text-decoration: none !important;
-}
-
-/* ─ SIDEBAR ─ */
-[data-testid="stSidebar"] {
-    background: #0D0D1A !important;
-    border-right: 1px solid rgba(255,255,255,0.06) !important;
-}
-[data-testid="stSidebar"] [data-testid="stSidebarNavItems"] a {
-    font-family: 'DM Sans', sans-serif !important;
-    color: #64748B !important;
-    border-radius: 10px !important;
-    font-size: 0.875rem !important;
-}
-[data-testid="stSidebar"] [data-testid="stSidebarNavItems"] a:hover,
-[data-testid="stSidebar"] [data-testid="stSidebarNavItems"] a[aria-current="page"] {
-    background: rgba(255,255,255,0.05) !important;
-    color: #E2E8F0 !important;
-}
-[data-testid="stSidebarCollapseButton"] {
-    color: #475569 !important;
-}
-
-/* ─ STAPP OVERRIDES ─ */
-.stDivider hr { border-color: rgba(255,255,255,0.05) !important; }
 </style>
 """, unsafe_allow_html=True)
 

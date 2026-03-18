@@ -2,12 +2,20 @@ import streamlit as st
 import uuid
 from datetime import datetime, date, timezone, timedelta
 from data.sheets import get_data, append_record, update_record
+from utils.theme import apply_theme, PAGE_CONFIG
 
-st.set_page_config(page_title="Gestión — ControlFit", page_icon="⚙️", layout="centered")
+st.set_page_config(
+    page_title="Gestión — ControlFit",
+    page_icon="⚙️",
+    layout="centered",
+    initial_sidebar_state=PAGE_CONFIG["initial_sidebar_state"],
+)
 
 if not st.session_state.get("authenticated"):
     st.warning("Debes iniciar sesión primero.")
     st.stop()
+
+apply_theme()
 
 st.title("⚙️ Gestión de Alumnos")
 
