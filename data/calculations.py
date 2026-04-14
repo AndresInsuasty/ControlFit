@@ -38,8 +38,8 @@ def get_metrics(df: pd.DataFrame) -> dict:
         return {"activos": 0, "por_vencer": 0, "vencidos": 0, "ingresos_mes": 0.0}
 
     now = pd.Timestamp.now()
-    this_month = df["fecha_registro"].dt.month == now.month
-    this_year = df["fecha_registro"].dt.year == now.year
+    this_month = df["fecha_inicio"].dt.month == now.month
+    this_year = df["fecha_inicio"].dt.year == now.year
 
     current = _current_per_student(df)
 
@@ -61,7 +61,7 @@ def get_monthly_income(df: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame({"mes": labels, "ingresos": [0.0] * 12})
 
     df = df.copy()
-    df["mes_key"] = df["fecha_registro"].dt.to_period("M")
+    df["mes_key"] = df["fecha_inicio"].dt.to_period("M")
 
     result = []
     for m in months:
@@ -104,17 +104,6 @@ def get_renewed_students(df: pd.DataFrame) -> pd.DataFrame:
     renewed = current[current["fecha_registro"] >= cutoff].copy()
     renewed = renewed.sort_values("fecha_registro", ascending=False)
     return renewed[["nombre", "telefono", "fecha_inicio", "fecha_fin", "valor_pagado", "fecha_registro"]].reset_index(drop=True)
-
-
-def get_projected_income(df: pd.DataFrame) -> tuple:
-    """Return (projected_income, student_count) based on all active students."""
-    if df.empty or "estado" not in df.columns:
-        return (0.0, 0)
-    current = _current_per_student(df)
-    active = current[current["estado"].isin(["ACTIVO", "POR VENCER"])]
-    total = float(active["valor_pagado"].sum())
-    count = len(active)
-    return (total, count)
 
 
 def format_whatsapp_url(telefono) -> str:

@@ -2,7 +2,7 @@ import streamlit as st
 import uuid
 from datetime import datetime, date, timezone, timedelta
 from data.sheets import get_data, append_record, update_record
-from utils.theme import apply_theme, PAGE_CONFIG
+from utils.theme import apply_theme, PAGE_CONFIG, render_logo_link
 
 st.set_page_config(
     page_title="Gestión — ControlFit",
@@ -17,7 +17,13 @@ if not st.session_state.get("authenticated"):
 
 apply_theme()
 
+render_logo_link()
+
 st.title("⚙️ Gestión de Alumnos")
+
+prefill_renovar = st.session_state.pop("prefill_renovar", None)
+if prefill_renovar:
+    st.info(f"Renovando membresía de **{prefill_renovar}**")
 
 tab_renew, tab_add, tab_edit = st.tabs(["🔄 Renovación", "➕ Agregar Alumno", "✏️ Editar Alumno"])
 
@@ -70,7 +76,8 @@ with tab_renew:
         # Latest record per student (highest fecha_fin)
         df_current = df_all.sort_values("fecha_fin").groupby("nombre", as_index=False).last()
         nombres = df_current["nombre"].tolist()
-        selected_nombre = st.selectbox("Selecciona un alumno", nombres, index=None,
+        default_idx = nombres.index(prefill_renovar) if prefill_renovar in nombres else None
+        selected_nombre = st.selectbox("Selecciona un alumno", nombres, index=default_idx,
                                        placeholder="Escoge un alumno...", key="renew_select")
 
         if selected_nombre is not None:
