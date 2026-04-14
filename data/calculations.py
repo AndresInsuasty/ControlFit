@@ -95,6 +95,17 @@ def get_expired_students(df: pd.DataFrame) -> pd.DataFrame:
     return expired[["nombre", "telefono", "fecha_fin", "dias_vencido", "valor_pagado"]].reset_index(drop=True)
 
 
+def get_renewed_students(df: pd.DataFrame) -> pd.DataFrame:
+    """Return students whose latest plan was registered in the last 7 days."""
+    if df.empty or "fecha_registro" not in df.columns:
+        return pd.DataFrame(columns=["nombre", "telefono", "fecha_inicio", "fecha_fin", "valor_pagado", "fecha_registro"])
+    current = _current_per_student(df)
+    cutoff = pd.Timestamp.now(tz="America/Bogota") - pd.Timedelta(days=7)
+    renewed = current[current["fecha_registro"] >= cutoff].copy()
+    renewed = renewed.sort_values("fecha_registro", ascending=False)
+    return renewed[["nombre", "telefono", "fecha_inicio", "fecha_fin", "valor_pagado", "fecha_registro"]].reset_index(drop=True)
+
+
 def get_projected_income(df: pd.DataFrame) -> tuple:
     """Return (projected_income, student_count) based on all active students."""
     if df.empty or "estado" not in df.columns:
