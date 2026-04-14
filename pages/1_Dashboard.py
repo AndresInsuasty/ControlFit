@@ -1,4 +1,3 @@
-import urllib.parse
 import streamlit as st
 import plotly.graph_objects as go
 from data.sheets import get_data
@@ -9,11 +8,10 @@ from data.calculations import (
     get_expiring_students,
     get_metrics,
     get_monthly_income,
-    get_projected_income,
     get_renewed_students,
     get_status_counts,
 )
-from utils.theme import apply_theme, PAGE_CONFIG
+from utils.theme import apply_theme, PAGE_CONFIG, WA_SVG, wa_button_html
 
 st.set_page_config(page_title="ControlFit", page_icon="💪", **PAGE_CONFIG)
 
@@ -61,8 +59,8 @@ st.markdown("""
     margin-bottom: 1.75rem;
     overflow: visible;
 }
-@media (min-width: 560px) { .kpi-grid { grid-template-columns: repeat(3, 1fr); } }
-@media (min-width: 860px) { .kpi-grid { grid-template-columns: repeat(5, 1fr); } }
+@media (min-width: 560px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 860px) { .kpi-grid { grid-template-columns: repeat(4, 1fr); } }
 
 .kpi-card {
     background: #111120;
@@ -334,7 +332,6 @@ st.markdown("""
 df_raw = get_data()
 df = compute_status(df_raw) if not df_raw.empty else df_raw
 metrics = get_metrics(df)
-projected, renewal_count = get_projected_income(df)
 expiring_df = get_expiring_students(df)
 expired_df = get_expired_students(df)
 renewed_df = get_renewed_students(df)
@@ -360,7 +357,6 @@ st.markdown(f"""
 
 # ── KPI CARDS ──────────────────────────────────────────────────────────────
 ingresos_fmt = fmt_cop(metrics["ingresos_mes"])
-proj_fmt = fmt_cop(projected)
 
 st.markdown(f"""
 <div class="kpi-grid">
@@ -389,26 +385,99 @@ st.markdown(f"""
         <div class="kpi-label">
             Ingresos este mes
             <span class="kpi-info">ℹ
-                <span class="kpi-tooltip">Suma de todos los pagos registrados durante el mes actual, basado en la fecha en que se guardó cada registro.</span>
+                <span class="kpi-tooltip">Suma de pagos cuyas membresías iniciaron este mes (según fecha de inicio del plan).</span>
             </span>
         </div>
-    </div>
-    <div class="kpi-card">
-        <div class="kpi-accent" style="background:#A78BFA"></div>
-        <span class="kpi-icon">📈</span>
-        <div class="kpi-value md">{proj_fmt}</div>
-        <div class="kpi-label">
-            Proyección próximo mes
-            <span class="kpi-info">ℹ
-                <span class="kpi-tooltip">Estimado de ingresos del próximo mes basado en los {renewal_count} afiliados activos y por vencer, usando su último valor pagado.</span>
-            </span>
-        </div>
-        <div class="kpi-delta">↑ {renewal_count} activos</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
+# ── Clickable KPI navigation (Streamlit-native, preserves session) ─────────
+st.markdown("""
+<style>
+/* Compact KPI nav buttons that live just under the KPI grid */
+.kpi-nav div[data-testid="stButton"] > button {
+    background: transparent !important;
+    color: #64748B !important;
+    border: 1px solid rgba(255,255,255,0.06) !important;
+    border-radius: 12px !important;
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.04em;
+    padding: 6px 10px !important;
+    width: 100% !important;
+    transition: all 0.15s;
+}
+.kpi-nav div[data-testid="stButton"] > button:hover {
+    color: #E2E8F0 !important;
+    border-color: rgba(74,222,128,0.4) !important;
+    background: rgba(74,222,128,0.04) !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown('<div class="kpi-nav">', unsafe_allow_html=True)
+nav_cols = st.columns(4)
+if nav_cols[0].button("→ Ver activos", key="nav_activos", use_container_width=True):
+    st.session_state["alumnos_filter"] = "ACTIVO"
+    st.switch_page("pages/2_Alumnos.py")
+if nav_cols[1].button("→ Ver por vencer", key="nav_por_vencer", use_container_width=True):
+    st.session_state["alumnos_filter"] = "POR VENCER"
+    st.switch_page("pages/2_Alumnos.py")
+if nav_cols[2].button("→ Ver vencidos", key="nav_vencidos", use_container_width=True):
+    st.session_state["alumnos_filter"] = "VENCIDO"
+    st.switch_page("pages/2_Alumnos.py")
+nav_cols[3].markdown("&nbsp;", unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
+
 # ── ACTION TABLES ──────────────────────────────────────────────────────────
+
+# CSS for name-as-button (clickable student names in action lists)
+st.markdown("""
+<style>
+.action-list div[data-testid="stButton"] > button {
+    background: transparent !important;
+    color: #E2E8F0 !important;
+    border: none !important;
+    padding: 0 !important;
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+    text-align: left !important;
+    justify-content: flex-start !important;
+    min-height: auto !important;
+    height: auto !important;
+    width: 100% !important;
+    box-shadow: none !important;
+}
+.action-list div[data-testid="stButton"] > button:hover {
+    color: #4ADE80 !important;
+    text-decoration: underline;
+}
+.action-list .stColumn { padding: 10px 4px !important; }
+.action-list .row-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    display: inline-block; margin-top: 10px;
+}
+.action-list .row-sub {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.72rem; color: #64748B; margin-top: 2px;
+}
+.action-list .row-valor {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.05rem; font-weight: 600; color: #64748B;
+    text-align: right;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
+def _navigate_to_alumno(nombre: str) -> None:
+    st.session_state["alumno_detail"] = nombre
+    st.switch_page("pages/2_Alumnos.py")
+
+
 if expiring_df.empty and expired_df.empty:
     st.markdown("""
     <div class="all-good">
@@ -423,135 +492,85 @@ else:
     with col_a:
         st.markdown('<div class="section-title"><span>⚠️</span>Por Vencer</div>', unsafe_allow_html=True)
         if expiring_df.empty:
-            st.markdown("""
-            <div class="action-card">
-                <div class="action-item" style="justify-content:center;color:#334155;font-family:'DM Sans',sans-serif;font-size:0.82rem;">
-                    Sin alumnos próximos a vencer
-                </div>
-            </div>""", unsafe_allow_html=True)
+            st.caption("Sin alumnos próximos a vencer")
         else:
-            rows = ""
-            for _, r in expiring_df.iterrows():
+            st.markdown('<div class="action-list">', unsafe_allow_html=True)
+            for idx, r in expiring_df.iterrows():
                 wa_url = format_whatsapp_url(r["telefono"])
                 dias_restantes = (r["fecha_fin"].date() - hoy).days
                 dias_label = "día" if dias_restantes == 1 else "días"
-                if wa_url:
-                    msg = (
-                        f"Hola {r['nombre']}! 👋 Soy la IA de tu Coach Diego. "
-                        f"Te escribo para recordarte que tu membresía vence en {dias_restantes} {dias_label}. "
-                        f"🏋️ Renueva antes de que venza y sigue entrenando sin interrupciones. "
-                        f"¡No dejes que se corte tu racha! 💪"
-                    )
-                    wa = f'<a href="{wa_url}?text={urllib.parse.quote(msg)}" target="_blank" class="wa-btn"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="#4ADE80"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg></a>'
-                else:
-                    wa = ""
-                valor = fmt_cop(r["valor_pagado"])
-                rows += f"""
-                <div class="action-item">
-                    <div class="action-dot" style="background:#FBBF24"></div>
-                    <div class="action-info">
-                        <div class="action-name">{r['nombre']}</div>
-                        <div class="action-sub">
-                            <span class="badge badge-amber">Vence en {dias_restantes} {dias_label}</span>
-                        </div>
-                    </div>
-                    <div class="action-right">
-                        <div class="action-valor">{valor}</div>
-                        {wa}
-                    </div>
-                </div>"""
-            st.markdown(f'<div class="action-card">{rows}</div>', unsafe_allow_html=True)
+                msg = (
+                    f"Hola {r['nombre']}! 👋 Soy la IA de tu Coach Diego. "
+                    f"Te escribo para recordarte que tu membresía vence en {dias_restantes} {dias_label}. "
+                    f"🏋️ Renueva antes de que venza y sigue entrenando sin interrupciones. "
+                    f"¡No dejes que se corte tu racha! 💪"
+                )
+                c_dot, c_name, c_valor, c_wa = st.columns([0.2, 2.2, 1.1, 0.5])
+                c_dot.markdown('<span class="row-dot" style="background:#FBBF24"></span>', unsafe_allow_html=True)
+                with c_name:
+                    if st.button(r["nombre"], key=f"pv_name_{idx}"):
+                        _navigate_to_alumno(r["nombre"])
+                    st.markdown(f'<div class="row-sub"><span class="badge badge-amber">Vence en {dias_restantes} {dias_label}</span></div>', unsafe_allow_html=True)
+                c_valor.markdown(f'<div class="row-valor">{fmt_cop(r["valor_pagado"])}</div>', unsafe_allow_html=True)
+                c_wa.markdown(wa_button_html(wa_url, msg), unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
     with col_b:
         st.markdown('<div class="section-title"><span>❌</span>Vencidos</div>', unsafe_allow_html=True)
         if expired_df.empty:
-            st.markdown("""
-            <div class="action-card">
-                <div class="action-item" style="justify-content:center;color:#334155;font-family:'DM Sans',sans-serif;font-size:0.82rem;">
-                    Sin alumnos vencidos
-                </div>
-            </div>""", unsafe_allow_html=True)
+            st.caption("Sin alumnos vencidos")
         else:
-            rows = ""
-            for _, r in expired_df.iterrows():
+            st.markdown('<div class="action-list">', unsafe_allow_html=True)
+            for idx, r in expired_df.iterrows():
                 wa_url = format_whatsapp_url(r["telefono"])
                 fecha = r["fecha_fin"].strftime("%d/%m/%Y")
-                valor = fmt_cop(r["valor_pagado"])
                 dias = int(r["dias_vencido"])
                 label = "día" if dias == 1 else "días"
-                if wa_url:
-                    msg = (
-                        f"Hola {r['nombre']}! 👋 Soy la IA de tu Coach Diego. "
-                        f"Hace {dias} {label} que tu membresía venció y te extrañamos en el gym. 🏋️ "
-                        f"Sabemos que retomar cuesta, pero ya diste el primer paso al entrenar con Diego. "
-                        f"¿Qué te parece si renovamos hoy y seguimos con tu progreso? ¡Te esperamos! 💪"
-                    )
-                    wa = f'<a href="{wa_url}?text={urllib.parse.quote(msg)}" target="_blank" class="wa-btn"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="#4ADE80"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg></a>'
-                else:
-                    wa = ""
-                rows += f"""
-                <div class="action-item">
-                    <div class="action-dot" style="background:#F87171"></div>
-                    <div class="action-info">
-                        <div class="action-name">{r['nombre']}</div>
-                        <div class="action-sub">
-                            <span class="badge badge-red">Hace {dias} {label}</span>
-                            <span style="color:#334155">{fecha}</span>
-                        </div>
-                    </div>
-                    <div class="action-right">
-                        <div class="action-valor">{valor}</div>
-                        {wa}
-                    </div>
-                </div>"""
-            st.markdown(f'<div class="action-card">{rows}</div>', unsafe_allow_html=True)
+                msg = (
+                    f"Hola {r['nombre']}! 👋 Soy la IA de tu Coach Diego. "
+                    f"Hace {dias} {label} que tu membresía venció y te extrañamos en el gym. 🏋️ "
+                    f"Sabemos que retomar cuesta, pero ya diste el primer paso al entrenar con Diego. "
+                    f"¿Qué te parece si renovamos hoy y seguimos con tu progreso? ¡Te esperamos! 💪"
+                )
+                c_dot, c_name, c_valor, c_wa = st.columns([0.2, 2.2, 1.1, 0.5])
+                c_dot.markdown('<span class="row-dot" style="background:#F87171"></span>', unsafe_allow_html=True)
+                with c_name:
+                    if st.button(r["nombre"], key=f"vc_name_{idx}"):
+                        _navigate_to_alumno(r["nombre"])
+                    st.markdown(f'<div class="row-sub"><span class="badge badge-red">Hace {dias} {label}</span> · {fecha}</div>', unsafe_allow_html=True)
+                c_valor.markdown(f'<div class="row-valor">{fmt_cop(r["valor_pagado"])}</div>', unsafe_allow_html=True)
+                c_wa.markdown(wa_button_html(wa_url, msg), unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
 # ── RENOVADOS ──────────────────────────────────────────────────────────────
 st.markdown('<hr class="cf-divider">', unsafe_allow_html=True)
 st.markdown('<div class="section-title"><span>🎉</span>Renovados (últimos 7 días)</div>', unsafe_allow_html=True)
 
 if renewed_df.empty:
-    st.markdown("""
-    <div class="action-card">
-        <div class="action-item" style="justify-content:center;color:#334155;font-family:'DM Sans',sans-serif;font-size:0.82rem;">
-            Sin renovaciones en los últimos 7 días
-        </div>
-    </div>""", unsafe_allow_html=True)
+    st.caption("Sin renovaciones en los últimos 7 días")
 else:
-    rows = ""
-    for _, r in renewed_df.iterrows():
+    st.markdown('<div class="action-list">', unsafe_allow_html=True)
+    for idx, r in renewed_df.iterrows():
         wa_url = format_whatsapp_url(r["telefono"])
         dias_desde = (datetime.now(tz=r["fecha_registro"].tzinfo) - r["fecha_registro"]).days
         dias_label = "día" if dias_desde == 1 else "días"
         fecha_inicio_fmt = r["fecha_inicio"].strftime("%d/%m/%Y")
         fecha_fin_fmt = r["fecha_fin"].strftime("%d/%m/%Y")
-        valor = fmt_cop(r["valor_pagado"])
-        if wa_url:
-            msg = (
-                f"Hola {r['nombre']}! 🎉 Soy la IA de tu coach Diego. "
-                f"Me alegra confirmarte que tu membresía ha sido renovada exitosamente. "
-                f"Tu plan va del {fecha_inicio_fmt} al {fecha_fin_fmt}. "
-                f"¡Sigamos trabajando juntos para alcanzar tus metas! 💪🔥"
-            )
-            wa = f'<a href="{wa_url}?text={urllib.parse.quote(msg)}" target="_blank" class="wa-btn"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="#4ADE80"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg></a>'
-        else:
-            wa = ""
-        rows += f"""
-        <div class="action-item">
-            <div class="action-dot" style="background:#34D399"></div>
-            <div class="action-info">
-                <div class="action-name">{r['nombre']}</div>
-                <div class="action-sub">
-                    <span class="badge badge-green">Renovó hace {dias_desde} {dias_label}</span>
-                    <span style="color:#334155">{fecha_inicio_fmt} → {fecha_fin_fmt}</span>
-                </div>
-            </div>
-            <div class="action-right">
-                <div class="action-valor">{valor}</div>
-                {wa}
-            </div>
-        </div>"""
-    st.markdown(f'<div class="action-card">{rows}</div>', unsafe_allow_html=True)
+        msg = (
+            f"Hola {r['nombre']}! 🎉 Soy la IA de tu coach Diego. "
+            f"Me alegra confirmarte que tu membresía ha sido renovada exitosamente. "
+            f"Tu plan va del {fecha_inicio_fmt} al {fecha_fin_fmt}. "
+            f"¡Sigamos trabajando juntos para alcanzar tus metas! 💪🔥"
+        )
+        c_dot, c_name, c_valor, c_wa = st.columns([0.1, 3, 1.1, 0.4])
+        c_dot.markdown('<span class="row-dot" style="background:#34D399"></span>', unsafe_allow_html=True)
+        with c_name:
+            if st.button(r["nombre"], key=f"rn_name_{idx}"):
+                _navigate_to_alumno(r["nombre"])
+            st.markdown(f'<div class="row-sub"><span class="badge badge-green">Renovó hace {dias_desde} {dias_label}</span> · {fecha_inicio_fmt} → {fecha_fin_fmt}</div>', unsafe_allow_html=True)
+        c_valor.markdown(f'<div class="row-valor">{fmt_cop(r["valor_pagado"])}</div>', unsafe_allow_html=True)
+        c_wa.markdown(wa_button_html(wa_url, msg), unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ── CHARTS ─────────────────────────────────────────────────────────────────
 st.markdown('<hr class="cf-divider">', unsafe_allow_html=True)

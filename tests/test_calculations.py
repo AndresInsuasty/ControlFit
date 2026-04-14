@@ -3,7 +3,7 @@ import pytest
 from datetime import datetime, timedelta
 from data.calculations import (
     compute_status, get_metrics, get_monthly_income, get_status_counts,
-    get_expiring_students, get_expired_students, get_projected_income,
+    get_expiring_students, get_expired_students,
     format_whatsapp_url, MESES_ES,
 )
 
@@ -86,8 +86,8 @@ def test_get_metrics_ingresos_mes():
     now = pd.Timestamp.now()
     last_month = now - pd.DateOffset(months=1)
     df = make_df([
-        {"valor_pagado": 200000.0, "fecha_registro": now},         # this month
-        {"valor_pagado": 100000.0, "fecha_registro": last_month},  # last month
+        {"nombre": "A", "valor_pagado": 200000.0, "fecha_inicio": now, "fecha_fin": now + timedelta(days=30)},
+        {"nombre": "B", "valor_pagado": 100000.0, "fecha_inicio": last_month, "fecha_fin": last_month + timedelta(days=10)},
     ])
     df = compute_status(df)
     metrics = get_metrics(df)
@@ -116,8 +116,8 @@ def test_get_monthly_income_zero_fill():
 def test_get_monthly_income_aggregates_current_month():
     now = pd.Timestamp.now()
     df = make_df([
-        {"valor_pagado": 150000.0, "fecha_registro": now},
-        {"valor_pagado": 50000.0, "fecha_registro": now},
+        {"valor_pagado": 150000.0, "fecha_inicio": now, "fecha_fin": now + timedelta(days=30)},
+        {"valor_pagado": 50000.0, "fecha_inicio": now, "fecha_fin": now + timedelta(days=30)},
     ])
     result = get_monthly_income(df)
     current_month_label = f"{MESES_ES[now.month]} {now.year}"
@@ -209,36 +209,6 @@ def test_get_expired_students_empty():
     df = compute_status(df)
     result = get_expired_students(df)
     assert result.empty
-
-
-# --- get_projected_income ---
-
-def test_get_projected_income_sums_por_vencer_and_vencido():
-    df = make_df([
-        {"nombre": "Maria", "fecha_fin": TODAY + timedelta(days=3), "valor_pagado": 100000.0},
-        {"nombre": "Ana", "fecha_fin": TODAY - timedelta(days=5), "valor_pagado": 80000.0},
-        {"nombre": "Luis", "fecha_fin": TODAY + timedelta(days=20), "valor_pagado": 150000.0},
-    ])
-    df = compute_status(df)
-    total, count = get_projected_income(df)
-    assert total == 180000.0
-    assert count == 2
-
-def test_get_projected_income_excludes_activo():
-    df = make_df([
-        {"nombre": "Luis", "fecha_fin": TODAY + timedelta(days=20), "valor_pagado": 150000.0},
-    ])
-    df = compute_status(df)
-    total, count = get_projected_income(df)
-    assert total == 0.0
-    assert count == 0
-
-def test_get_projected_income_empty():
-    df = pd.DataFrame(columns=["id", "nombre", "telefono", "fecha_inicio", "fecha_fin",
-                                "valor_pagado", "notas", "fecha_registro", "estado"])
-    total, count = get_projected_income(df)
-    assert total == 0.0
-    assert count == 0
 
 
 # --- format_whatsapp_url ---
