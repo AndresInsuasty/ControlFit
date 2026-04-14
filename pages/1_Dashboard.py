@@ -11,7 +11,7 @@ from data.calculations import (
     get_renewed_students,
     get_status_counts,
 )
-from utils.theme import apply_theme, PAGE_CONFIG, WA_SVG, wa_button_html
+from utils.theme import apply_theme, PAGE_CONFIG, wa_button_html
 
 st.set_page_config(page_title="ControlFit", page_icon="💪", **PAGE_CONFIG)
 
@@ -131,15 +131,16 @@ st.markdown("""
 }
 .section-title span { margin-right: 6px; }
 
-/* ─ ACTION CARD ─ */
+/* ─ ACTION CARD (≈3 filas visibles + scroll) ─ */
 .action-card {
     background: #111120;
     border: 1px solid rgba(255,255,255,0.07);
     border-radius: 20px;
     overflow-x: hidden;
     overflow-y: auto;
-    max-height: 204px;
+    max-height: 212px;
     margin-bottom: 0.75rem;
+    scrollbar-gutter: stable;
 }
 .action-card::-webkit-scrollbar { width: 4px; }
 .action-card::-webkit-scrollbar-track { background: transparent; }
@@ -325,6 +326,42 @@ st.markdown("""
     margin-bottom: 6px;
 }
 
+/* Listas con scroll: solo bloques con borde del dashboard (por vencer / vencidos / renovados) */
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    background: #111120 !important;
+    border-color: rgba(255,255,255,0.07) !important;
+    border-radius: 20px !important;
+}
+div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stVerticalBlock"] > div {
+    row-gap: 0.1rem !important;
+}
+div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stPageLink"] a {
+    text-decoration: none !important;
+    padding: 0 !important;
+    min-height: 0 !important;
+}
+div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stPageLink"] a p {
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+    color: #E2E8F0 !important;
+    margin: 0 !important;
+    line-height: 1.25 !important;
+}
+div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stPageLink"] a:hover p {
+    color: #4ADE80 !important;
+    text-decoration: underline !important;
+}
+div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="column"] {
+    padding-top: 0.3rem !important;
+    padding-bottom: 0.3rem !important;
+}
+.dash-row-line {
+    height: 1px;
+    background: rgba(255,255,255,0.04);
+    margin: 2px 0 4px;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -431,51 +468,25 @@ if nav_cols[2].button("→ Ver vencidos", key="nav_vencidos", use_container_widt
 nav_cols[3].markdown("&nbsp;", unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
-# ── ACTION TABLES ──────────────────────────────────────────────────────────
+# ── ACTION TABLES (tarjetas con scroll, ~3 filas visibles) ─────────────────
 
-# CSS for name-as-button (clickable student names in action lists)
-st.markdown("""
-<style>
-.action-list div[data-testid="stButton"] > button {
-    background: transparent !important;
-    color: #E2E8F0 !important;
-    border: none !important;
-    padding: 0 !important;
-    font-family: 'DM Sans', sans-serif !important;
-    font-size: 0.9rem !important;
-    font-weight: 500 !important;
-    text-align: left !important;
-    justify-content: flex-start !important;
-    min-height: auto !important;
-    height: auto !important;
-    width: 100% !important;
-    box-shadow: none !important;
-}
-.action-list div[data-testid="stButton"] > button:hover {
-    color: #4ADE80 !important;
-    text-decoration: underline;
-}
-.action-list .stColumn { padding: 10px 4px !important; }
-.action-list .row-dot {
-    width: 8px; height: 8px; border-radius: 50%;
-    display: inline-block; margin-top: 10px;
-}
-.action-list .row-sub {
-    font-family: 'DM Sans', sans-serif;
-    font-size: 0.72rem; color: #64748B; margin-top: 2px;
-}
-.action-list .row-valor {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 1.05rem; font-weight: 600; color: #64748B;
-    text-align: right;
-}
-</style>
-""", unsafe_allow_html=True)
+DASH_SCROLL_H = 212
 
 
-def _navigate_to_alumno(nombre: str) -> None:
-    st.session_state["alumno_detail"] = nombre
-    st.switch_page("pages/2_Alumnos.py")
+def _dash_dot(color: str) -> str:
+    return (
+        f'<div style="width:8px;height:8px;border-radius:50%;background:{color};'
+        f'margin-top:10px" aria-hidden="true"></div>'
+    )
+
+
+def _empty_scroll_card(msg: str) -> None:
+    with st.container(height=92, border=True):
+        st.markdown(
+            f"""<div style="min-height:56px;display:flex;align-items:center;justify-content:center;
+            text-align:center;font-family:'DM Sans',sans-serif;font-size:0.82rem;color:#475569">{msg}</div>""",
+            unsafe_allow_html=True,
+        )
 
 
 if expiring_df.empty and expired_df.empty:
@@ -492,85 +503,127 @@ else:
     with col_a:
         st.markdown('<div class="section-title"><span>⚠️</span>Por Vencer</div>', unsafe_allow_html=True)
         if expiring_df.empty:
-            st.caption("Sin alumnos próximos a vencer")
+            _empty_scroll_card("Sin alumnos próximos a vencer")
         else:
-            st.markdown('<div class="action-list">', unsafe_allow_html=True)
-            for idx, r in expiring_df.iterrows():
-                wa_url = format_whatsapp_url(r["telefono"])
-                dias_restantes = (r["fecha_fin"].date() - hoy).days
-                dias_label = "día" if dias_restantes == 1 else "días"
-                msg = (
-                    f"Hola {r['nombre']}! 👋 Soy la IA de tu Coach Diego. "
-                    f"Te escribo para recordarte que tu membresía vence en {dias_restantes} {dias_label}. "
-                    f"🏋️ Renueva antes de que venza y sigue entrenando sin interrupciones. "
-                    f"¡No dejes que se corte tu racha! 💪"
-                )
-                c_dot, c_name, c_valor, c_wa = st.columns([0.2, 2.2, 1.1, 0.5])
-                c_dot.markdown('<span class="row-dot" style="background:#FBBF24"></span>', unsafe_allow_html=True)
-                with c_name:
-                    if st.button(r["nombre"], key=f"pv_name_{idx}"):
-                        _navigate_to_alumno(r["nombre"])
-                    st.markdown(f'<div class="row-sub"><span class="badge badge-amber">Vence en {dias_restantes} {dias_label}</span></div>', unsafe_allow_html=True)
-                c_valor.markdown(f'<div class="row-valor">{fmt_cop(r["valor_pagado"])}</div>', unsafe_allow_html=True)
-                c_wa.markdown(wa_button_html(wa_url, msg), unsafe_allow_html=True)
-            st.markdown('</div>', unsafe_allow_html=True)
+            with st.container(height=DASH_SCROLL_H, border=True):
+                for n, (idx, r) in enumerate(expiring_df.iterrows()):
+                    if n:
+                        st.markdown('<div class="dash-row-line"></div>', unsafe_allow_html=True)
+                    wa_url = format_whatsapp_url(r["telefono"])
+                    dias_restantes = (r["fecha_fin"].date() - hoy).days
+                    dias_label = "día" if dias_restantes == 1 else "días"
+                    msg = (
+                        f"Hola {r['nombre']}! 👋 Soy la IA de tu Coach Diego. "
+                        f"Te escribo para recordarte que tu membresía vence en {dias_restantes} {dias_label}. "
+                        f"🏋️ Renueva antes de que venza y sigue entrenando sin interrupciones. "
+                        f"¡No dejes que se corte tu racha! 💪"
+                    )
+                    c_dot, c_name, c_valor, c_wa = st.columns(
+                        [0.14, 2.35, 1.05, 0.48], gap="small", vertical_alignment="center"
+                    )
+                    c_dot.markdown(_dash_dot("#FBBF24"), unsafe_allow_html=True)
+                    with c_name:
+                        st.page_link(
+                            "pages/2_Alumnos.py",
+                            label=r["nombre"],
+                            query_params={"alumno": r["nombre"]},
+                            use_container_width=True,
+                        )
+                        st.markdown(
+                            f'<div class="action-sub"><span class="badge badge-amber">'
+                            f"Vence en {dias_restantes} {dias_label}</span></div>",
+                            unsafe_allow_html=True,
+                        )
+                    c_valor.markdown(
+                        f'<div class="action-valor">{fmt_cop(r["valor_pagado"])}</div>',
+                        unsafe_allow_html=True,
+                    )
+                    c_wa.markdown(wa_button_html(wa_url, msg), unsafe_allow_html=True)
 
     with col_b:
         st.markdown('<div class="section-title"><span>❌</span>Vencidos</div>', unsafe_allow_html=True)
         if expired_df.empty:
-            st.caption("Sin alumnos vencidos")
+            _empty_scroll_card("Sin alumnos vencidos")
         else:
-            st.markdown('<div class="action-list">', unsafe_allow_html=True)
-            for idx, r in expired_df.iterrows():
-                wa_url = format_whatsapp_url(r["telefono"])
-                fecha = r["fecha_fin"].strftime("%d/%m/%Y")
-                dias = int(r["dias_vencido"])
-                label = "día" if dias == 1 else "días"
-                msg = (
-                    f"Hola {r['nombre']}! 👋 Soy la IA de tu Coach Diego. "
-                    f"Hace {dias} {label} que tu membresía venció y te extrañamos en el gym. 🏋️ "
-                    f"Sabemos que retomar cuesta, pero ya diste el primer paso al entrenar con Diego. "
-                    f"¿Qué te parece si renovamos hoy y seguimos con tu progreso? ¡Te esperamos! 💪"
-                )
-                c_dot, c_name, c_valor, c_wa = st.columns([0.2, 2.2, 1.1, 0.5])
-                c_dot.markdown('<span class="row-dot" style="background:#F87171"></span>', unsafe_allow_html=True)
-                with c_name:
-                    if st.button(r["nombre"], key=f"vc_name_{idx}"):
-                        _navigate_to_alumno(r["nombre"])
-                    st.markdown(f'<div class="row-sub"><span class="badge badge-red">Hace {dias} {label}</span> · {fecha}</div>', unsafe_allow_html=True)
-                c_valor.markdown(f'<div class="row-valor">{fmt_cop(r["valor_pagado"])}</div>', unsafe_allow_html=True)
-                c_wa.markdown(wa_button_html(wa_url, msg), unsafe_allow_html=True)
-            st.markdown('</div>', unsafe_allow_html=True)
+            with st.container(height=DASH_SCROLL_H, border=True):
+                for n, (idx, r) in enumerate(expired_df.iterrows()):
+                    if n:
+                        st.markdown('<div class="dash-row-line"></div>', unsafe_allow_html=True)
+                    wa_url = format_whatsapp_url(r["telefono"])
+                    fecha = r["fecha_fin"].strftime("%d/%m/%Y")
+                    dias = int(r["dias_vencido"])
+                    label = "día" if dias == 1 else "días"
+                    msg = (
+                        f"Hola {r['nombre']}! 👋 Soy la IA de tu Coach Diego. "
+                        f"Hace {dias} {label} que tu membresía venció y te extrañamos en el gym. 🏋️ "
+                        f"Sabemos que retomar cuesta, pero ya diste el primer paso al entrenar con Diego. "
+                        f"¿Qué te parece si renovamos hoy y seguimos con tu progreso? ¡Te esperamos! 💪"
+                    )
+                    c_dot, c_name, c_valor, c_wa = st.columns(
+                        [0.14, 2.35, 1.05, 0.48], gap="small", vertical_alignment="center"
+                    )
+                    c_dot.markdown(_dash_dot("#F87171"), unsafe_allow_html=True)
+                    with c_name:
+                        st.page_link(
+                            "pages/2_Alumnos.py",
+                            label=r["nombre"],
+                            query_params={"alumno": r["nombre"]},
+                            use_container_width=True,
+                        )
+                        st.markdown(
+                            f'<div class="action-sub"><span class="badge badge-red">Hace {dias} {label}</span>'
+                            f' <span style="color:#334155">{fecha}</span></div>',
+                            unsafe_allow_html=True,
+                        )
+                    c_valor.markdown(
+                        f'<div class="action-valor">{fmt_cop(r["valor_pagado"])}</div>',
+                        unsafe_allow_html=True,
+                    )
+                    c_wa.markdown(wa_button_html(wa_url, msg), unsafe_allow_html=True)
 
 # ── RENOVADOS ──────────────────────────────────────────────────────────────
 st.markdown('<hr class="cf-divider">', unsafe_allow_html=True)
 st.markdown('<div class="section-title"><span>🎉</span>Renovados (últimos 7 días)</div>', unsafe_allow_html=True)
 
 if renewed_df.empty:
-    st.caption("Sin renovaciones en los últimos 7 días")
+    _empty_scroll_card("Sin renovaciones en los últimos 7 días")
 else:
-    st.markdown('<div class="action-list">', unsafe_allow_html=True)
-    for idx, r in renewed_df.iterrows():
-        wa_url = format_whatsapp_url(r["telefono"])
-        dias_desde = (datetime.now(tz=r["fecha_registro"].tzinfo) - r["fecha_registro"]).days
-        dias_label = "día" if dias_desde == 1 else "días"
-        fecha_inicio_fmt = r["fecha_inicio"].strftime("%d/%m/%Y")
-        fecha_fin_fmt = r["fecha_fin"].strftime("%d/%m/%Y")
-        msg = (
-            f"Hola {r['nombre']}! 🎉 Soy la IA de tu coach Diego. "
-            f"Me alegra confirmarte que tu membresía ha sido renovada exitosamente. "
-            f"Tu plan va del {fecha_inicio_fmt} al {fecha_fin_fmt}. "
-            f"¡Sigamos trabajando juntos para alcanzar tus metas! 💪🔥"
-        )
-        c_dot, c_name, c_valor, c_wa = st.columns([0.1, 3, 1.1, 0.4])
-        c_dot.markdown('<span class="row-dot" style="background:#34D399"></span>', unsafe_allow_html=True)
-        with c_name:
-            if st.button(r["nombre"], key=f"rn_name_{idx}"):
-                _navigate_to_alumno(r["nombre"])
-            st.markdown(f'<div class="row-sub"><span class="badge badge-green">Renovó hace {dias_desde} {dias_label}</span> · {fecha_inicio_fmt} → {fecha_fin_fmt}</div>', unsafe_allow_html=True)
-        c_valor.markdown(f'<div class="row-valor">{fmt_cop(r["valor_pagado"])}</div>', unsafe_allow_html=True)
-        c_wa.markdown(wa_button_html(wa_url, msg), unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    with st.container(height=DASH_SCROLL_H, border=True):
+        for n, (idx, r) in enumerate(renewed_df.iterrows()):
+            if n:
+                st.markdown('<div class="dash-row-line"></div>', unsafe_allow_html=True)
+            wa_url = format_whatsapp_url(r["telefono"])
+            dias_desde = (datetime.now(tz=r["fecha_registro"].tzinfo) - r["fecha_registro"]).days
+            dias_label = "día" if dias_desde == 1 else "días"
+            fecha_inicio_fmt = r["fecha_inicio"].strftime("%d/%m/%Y")
+            fecha_fin_fmt = r["fecha_fin"].strftime("%d/%m/%Y")
+            msg = (
+                f"Hola {r['nombre']}! 🎉 Soy la IA de tu coach Diego. "
+                f"Me alegra confirmarte que tu membresía ha sido renovada exitosamente. "
+                f"Tu plan va del {fecha_inicio_fmt} al {fecha_fin_fmt}. "
+                f"¡Sigamos trabajando juntos para alcanzar tus metas! 💪🔥"
+            )
+            c_dot, c_name, c_valor, c_wa = st.columns(
+                [0.12, 2.55, 1.0, 0.45], gap="small", vertical_alignment="center"
+            )
+            c_dot.markdown(_dash_dot("#34D399"), unsafe_allow_html=True)
+            with c_name:
+                st.page_link(
+                    "pages/2_Alumnos.py",
+                    label=r["nombre"],
+                    query_params={"alumno": r["nombre"]},
+                    use_container_width=True,
+                )
+                st.markdown(
+                    f'<div class="action-sub"><span class="badge badge-green">Renovó hace {dias_desde} {dias_label}</span>'
+                    f' <span style="color:#334155">{fecha_inicio_fmt} → {fecha_fin_fmt}</span></div>',
+                    unsafe_allow_html=True,
+                )
+            c_valor.markdown(
+                f'<div class="action-valor">{fmt_cop(r["valor_pagado"])}</div>',
+                unsafe_allow_html=True,
+            )
+            c_wa.markdown(wa_button_html(wa_url, msg), unsafe_allow_html=True)
 
 # ── CHARTS ─────────────────────────────────────────────────────────────────
 st.markdown('<hr class="cf-divider">', unsafe_allow_html=True)

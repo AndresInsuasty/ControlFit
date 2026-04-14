@@ -1,5 +1,5 @@
 import streamlit as st
-from utils.theme import apply_theme, PAGE_CONFIG
+from utils.theme import apply_theme, PAGE_CONFIG, render_login_wordmark
 
 st.set_page_config(
     page_title="ControlFit",
@@ -15,15 +15,6 @@ apply_theme()
 
 st.markdown("""
 <style>
-.login-title {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 3rem;
-    font-weight: 800;
-    color: #F1F5F9;
-    margin-bottom: 0;
-    line-height: 1;
-}
-.login-title em { font-style: normal; color: #4ADE80; }
 .login-sub {
     font-family: 'DM Sans', sans-serif;
     font-size: 0.85rem;
@@ -34,7 +25,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<div class="login-title">Control<em>Fit</em></div>', unsafe_allow_html=True)
+render_login_wordmark()
 st.markdown('<div class="login-sub">Ingresa tu contraseña para continuar</div>', unsafe_allow_html=True)
 
 with st.form("login_form"):

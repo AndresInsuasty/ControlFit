@@ -87,31 +87,66 @@ def wa_button_html(wa_url: str, message: str) -> str:
 
 
 def render_logo_link() -> None:
-    """Top-of-page ControlFit logo that navigates back to app.py (preserves session)."""
+    """Marca ControlFit → dashboard. Debe ser st.page_link (no <a href>) para no perder la sesión."""
     st.markdown(
         """
         <style>
-        .cf-logo-link [data-testid="stPageLink"] a {
-            display: inline-flex !important;
-            align-items: baseline;
-            padding: 0 !important;
+        .cf-logo-nav-spacer { margin-bottom: 0.35rem; height: 0; overflow: hidden; }
+        /* Siguiente bloque: page_link al dashboard (único enlace a esa página en cabecera) */
+        div[data-testid="stVerticalBlock"] > div:has(.cf-logo-nav-spacer) + div [data-testid="stPageLink"] a {
             background: transparent !important;
             border: none !important;
-            text-decoration: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            min-height: 0 !important;
         }
-        .cf-logo-link [data-testid="stPageLink"] a p {
+        div[data-testid="stVerticalBlock"] > div:has(.cf-logo-nav-spacer) + div [data-testid="stPageLink"] a p {
             font-family: 'Barlow Condensed', sans-serif !important;
-            font-size: 1.6rem !important;
+            font-size: clamp(2rem, 6vw, 2.8rem) !important;
             font-weight: 800 !important;
-            color: #F1F5F9 !important;
-            letter-spacing: -0.01em;
-            line-height: 1;
+            letter-spacing: -0.01em !important;
+            line-height: 1 !important;
             margin: 0 !important;
+            text-decoration: none !important;
+            /* ~Control (7) + Fit (3) ≈ 70% / 30% en Barlow */
+            background: linear-gradient(90deg, #F1F5F9 0%, #F1F5F9 66%, #4ADE80 66%, #4ADE80 100%) !important;
+            -webkit-background-clip: text !important;
+            background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
         }
-        .cf-logo-link [data-testid="stPageLink"]:hover a p { color: #4ADE80 !important; }
+        div[data-testid="stVerticalBlock"] > div:has(.cf-logo-nav-spacer) + div [data-testid="stPageLink"]:hover a p {
+            filter: brightness(1.08);
+        }
         </style>
-        <div class="cf-logo-link"></div>
+        <div class="cf-logo-nav-spacer" aria-hidden="true"></div>
         """,
         unsafe_allow_html=True,
     )
-    st.page_link("app.py", label="💪 ControlFit")
+    st.page_link(
+        "pages/1_Dashboard.py",
+        label="ControlFit",
+        icon=None,
+        width="content",
+        help="Ir al panel principal",
+    )
+
+
+def render_login_wordmark() -> None:
+    """Marca ControlFit en la pantalla de login (sin enlace; tras entrar vas al dashboard)."""
+    st.markdown(
+        """
+        <style>
+        .cf-login-wordmark {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 3rem;
+            font-weight: 800;
+            color: #F1F5F9;
+            margin: 0 0 2px 0;
+            line-height: 1;
+        }
+        .cf-login-wordmark em { font-style: normal; color: #4ADE80; }
+        </style>
+        <div class="cf-login-wordmark">Control<em>Fit</em></div>
+        """,
+        unsafe_allow_html=True,
+    )

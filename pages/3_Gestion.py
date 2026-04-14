@@ -22,15 +22,40 @@ render_logo_link()
 st.title("⚙️ Gestión de Alumnos")
 
 prefill_renovar = st.session_state.pop("prefill_renovar", None)
+if prefill_renovar is None and "prefill_renovar" in st.query_params:
+    raw = st.query_params["prefill_renovar"]
+    q = raw if isinstance(raw, str) else (raw[0] if raw else "")
+    prefill_renovar = (q or "").strip() or None
 if prefill_renovar:
     st.info(f"Renovando membresía de **{prefill_renovar}**")
 
-tab_renew, tab_add, tab_edit = st.tabs(["🔄 Renovación", "➕ Agregar Alumno", "✏️ Editar Alumno"])
+prefill_edit_id = st.session_state.pop("prefill_edit_id", None)
+if prefill_edit_id is None and "prefill_edit_id" in st.query_params:
+    raw = st.query_params["prefill_edit_id"]
+    q = raw if isinstance(raw, str) else (raw[0] if raw else "")
+    prefill_edit_id = (q or "").strip() or None
+if prefill_edit_id:
+    if st.session_state.get("_edit_prefill_seen") != prefill_edit_id:
+        st.session_state.gestion_tab_ix = 2
+        st.session_state._edit_prefill_seen = prefill_edit_id
+        st.info("Editando el registro que elegiste en **Alumnos**.")
 
+TAB_LABELS = ["🔄 Renovación", "➕ Agregar Alumno", "✏️ Editar Alumno"]
+if "gestion_tab_ix" not in st.session_state:
+    st.session_state.gestion_tab_ix = 0
 
-# ──────────────── TAB 1: AGREGAR ────────────────
+tab_ix = st.radio(
+    " ",
+    range(3),
+    format_func=lambda i: TAB_LABELS[i],
+    horizontal=True,
+    label_visibility="collapsed",
+    key="gestion_tab_ix",
+)
 
-with tab_add:
+# ──────────────── TAB: AGREGAR ────────────────
+
+if tab_ix == 1:
     st.subheader("Nuevo Alumno")
 
     with st.form("form_agregar", clear_on_submit=True):
@@ -63,9 +88,9 @@ with tab_add:
             st.success(f"✅ Alumno **{nombre}** guardado exitosamente.")
 
 
-# ──────────────── TAB 2: RENOVACIÓN ────────────────
+# ──────────────── TAB: RENOVACIÓN ────────────────
 
-with tab_renew:
+elif tab_ix == 0:
     st.subheader("Renovar Membresía")
 
     df_all = get_data()
@@ -114,9 +139,9 @@ with tab_renew:
                     st.success(f"✅ Renovación de **{nombre_r}** registrada exitosamente.")
 
 
-# ──────────────── TAB 3: EDITAR ────────────────
+# ──────────────── TAB: EDITAR ────────────────
 
-with tab_edit:
+elif tab_ix == 2:
     st.subheader("Editar Registro Existente")
 
     df = get_data()
@@ -131,8 +156,20 @@ with tab_edit:
             + df["fecha_fin"].dt.strftime("%d/%m/%Y")
         )
         labels = df["_label"].tolist()
-        selected_idx = st.selectbox("Selecciona un registro", range(len(labels)), index=None,
-                                    format_func=lambda i: labels[i], placeholder="Escoge un registro...")
+        prefill_idx = None
+        if prefill_edit_id:
+            target = str(prefill_edit_id)
+            for i, rid in enumerate(df["id"].astype(str)):
+                if rid == target:
+                    prefill_idx = i
+                    break
+        selected_idx = st.selectbox(
+            "Selecciona un registro",
+            range(len(labels)),
+            index=prefill_idx,
+            format_func=lambda i: labels[i],
+            placeholder="Escoge un registro...",
+        )
 
         if selected_idx is not None:
             row = df.iloc[selected_idx]
